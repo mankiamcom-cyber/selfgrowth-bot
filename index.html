@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAGART AI Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Vazirmatn', sans-serif; background: #f0f2f5; display:flex; justify-content:center; align-items:center; height:100vh; }
+  #chat-container { width: 400px; max-width:95%; background:#fff; border-radius:20px; box-shadow:0 8px 25px rgba(0,0,0,0.2); display:flex; flex-direction:column; overflow:hidden; }
+  #header { background:#4CAF50; padding:15px; text-align:center; color:#fff; font-size:1.2rem; font-weight:700; }
+  #messages { flex:1; padding:15px; overflow-y:auto; background:#f9f9f9; display:flex; flex-direction:column; gap:10px; }
+  .message { max-width:80%; padding:10px 15px; border-radius:15px; word-wrap:break-word; line-height:1.4; position:relative; }
+  .user { background:#d0f0ff; align-self:flex-end; }
+  .bot { background:#e0ffe0; align-self:flex-start; }
+  .timestamp { font-size:0.7rem; color:#555; position:absolute; bottom:-18px; right:10px; }
+  #input-container { display:flex; padding:10px; border-top:1px solid #ddd; background:#fff; }
+  #message-input { flex:1; padding:10px 15px; border-radius:25px; border:1px solid #ccc; outline:none; transition: all 0.2s; }
+  #message-input:focus { border-color:#4CAF50; }
+  #send-btn { margin-left:10px; padding:10px 20px; border:none; border-radius:25px; background:#4CAF50; color:#fff; font-weight:700; cursor:pointer; transition:all 0.2s; }
+  #send-btn:hover { background:#45a049; }
+  #typing { font-style:italic; color:#888; margin-bottom:5px; display:none; }
+  #messages::-webkit-scrollbar { width:6px; }
+  #messages::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.2); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div id="chat-container">
+  <div id="header">SAGART AI Chat</div>
+  <div id="messages"></div>
+  <div id="typing">SAGART در حال تایپ کردن...</div>
+  <div id="input-container">
+    <input type="text" id="message-input" placeholder="پیامتو بنویس...">
+    <button id="send-btn">ارسال</button>
+  </div>
+</div>
+
+<script>
+const messagesDiv = document.getElementById('messages');
+const input = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const typingIndicator = document.getElementById('typing');
+
+const USER_ID = "user_" + Date.now();
+const LANGUAGE = "fa";
+
+function formatTime() {
+  const d = new Date();
+  return d.getHours().toString().padStart(2,'0') + ':' +
+         d.getMinutes().toString().padStart(2,'0');
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if(!text) return;
+
+  // نمایش پیام کاربر
+  const userMsg = document.createElement('div');
+  userMsg.classList.add('message', 'user');
+  userMsg.innerText = text;
+
+  const ts = document.createElement('div');
+  ts.classList.add('timestamp');
+  ts.innerText = formatTime();
+  userMsg.appendChild(ts);
+
+  messagesDiv.appendChild(userMsg);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  input.value = '';
+  typingIndicator.style.display = 'block';
+
+  try {
+    const response = await fetch("https://cloud.appwrite.io/v1/functions/selfgrowth-bot/executions", {
+      method: "POST",
+      headers: {
+        "Content-Type":"application/json",
+        "X-Appwrite-Project":"69358b310038a1d6ce11",
+        "X-Appwrite-Key":"YOUR_API_KEY_HERE"
+      },
+      body: JSON.stringify({ userId: USER_ID, message: text, language: LANGUAGE })
+    });
+
+    const data = await response.json();
+
+    setTimeout(() => {
+      typingIndicator.style.display = 'none';
+      const botMsg = document.createElement('div');
+      botMsg.classList.add('message', 'bot');
+      botMsg.innerText = data.reply || "خطایی رخ داد!";
+
+      const tsBot = document.createElement('div');
+      tsBot.classList.add('timestamp');
+      tsBot.innerText = formatTime();
+      botMsg.appendChild(tsBot);
+
+      messagesDiv.appendChild(botMsg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      console.log("User:", text, "Bot:", data.reply);
+    }, 600);
+
+  } catch(err) {
+    typingIndicator.style.display = 'none';
+    const errorMsg = document.createElement('div');
+    errorMsg.classList.add('message', 'bot');
+    errorMsg.innerText = "خطا در اتصال به سرور!";
+    messagesDiv.appendChild(errorMsg);
+  }
+}
+
+sendBtn.addEventListener('click', sendMessage);
+input.addEventListener('keypress', e => { if(e.key==='Enter') sendMessage(); });
+</script>
+
+</body>
+</html>
